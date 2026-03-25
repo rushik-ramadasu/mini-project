@@ -1,16 +1,4 @@
-pandas
-numpy
-scikit-learn
-statsmodels
-xgboost
-lightgbm
-prophet
-shap
-matplotlib
-seaborn
-fastapi
-uvicorn
-streamlit
+
 pandas==2.0.3
 numpy==1.24.4
 scikit-learn==1.3.0
