@@ -130,6 +130,58 @@ if st.button("Predict Conversion", type="primary", use_container_width=True):
             
             st.pyplot(fig)
             
+            # --- PRESCRIPTIVE RECOMMENDATIONS ---
+            st.subheader("Actionable Insights 💡")
+            
+            best_prob = prob
+            best_action = None
+            
+            # Run a mini simulation to find the "Next Best Action"
+            for ci_bump in [0, 1, 2, 3]:
+                for cd_bump in [0, 30, 60, 120, 240, 360]:
+                    if ci_bump == 0 and cd_bump == 0:
+                        continue
+                        
+                    test_ci = min(10.0, campaign_intensity + ci_bump)
+                    test_cd = min(1800.0, call_duration + cd_bump)
+                    
+                    test_df = df.copy()
+                    test_df['campaign_intensity'] = test_ci
+                    test_df['call_duration'] = test_cd
+                    
+                    test_df_scaled = test_df.copy()
+                    test_df_scaled[num_cols] = scaler.transform(test_df[num_cols])
+                    
+                    test_X = test_df_scaled[features]
+                    test_prob = xgb_model.predict_proba(test_X)[0][1]
+                    
+                    # Store if it improves conversion significantly
+                    if test_prob > best_prob + 0.01:
+                        best_prob = test_prob
+                        best_action = (test_ci, test_cd, ci_bump, cd_bump)
+            
+            if best_action:
+                test_ci, test_cd, ci_bump, cd_bump = best_action
+                improvement = best_prob - prob
+                
+                action_text = []
+                if ci_bump > 0:
+                    action_text.append(f"increasing **Campaign Intensity** to {int(test_ci)} (+{ci_bump} level{'s' if ci_bump > 1 else ''})")
+                if cd_bump > 0:
+                    action_text.append(f"lengthening **Call Duration** to {int(test_cd)}s (+{cd_bump}s)")
+                    
+                action_str = " and ".join(action_text)
+                
+                if best_prob > 0.6:
+                    st.success(f"📈 **Optimization Found:** By {action_str}, you could boost the probability by **{improvement:.1%}** (to **{best_prob:.1%}**).")
+                else:
+                    st.warning(f"⚠️ **Tough Lead:** You can improve odds slightly. By {action_str}, you could boost the probability by **{improvement:.1%}** (to **{best_prob:.1%}**).")
+            else:
+                if prob > 0.7:
+                    st.success("✅ **Optimal Strategy:** This customer is already highly optimized based on current inputs. Proceed with the campaign!")
+                else:
+                    st.info("ℹ️ **Insight:** Adjusting call duration or campaign intensity won't significantly improve the conversion probability for this specific profile. Consider alternative segments or offers.")
+            
         except Exception as e:
             st.error(f"An error occurred during prediction: {e}")
             '''
